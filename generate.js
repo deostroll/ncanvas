@@ -1,4 +1,8 @@
-
+function ulam(iterations) {
+  var tree = new Tree(iterations);
+  tree.arrange();
+  return tree;
+}
 
 function Node(parent, value) {
   this.parent = parent;
@@ -39,7 +43,7 @@ function Tree(levels) {
     return n;
   };
   var runOnce = false;
-  for (var i = 0; i < levels; i++) {
+  for (var i = 1; i < levels; i++) {
     var childNodes = [];
     while (children.length) {
       var n = children.shift();
@@ -127,10 +131,18 @@ Tree.prototype.arrange = function() {
   }
 }
 
-if (require.main === module) {
-  var levels = 7;
+if (require.main === module && !process.send) {
+  var levels = 5;
   var tree = new Tree(levels);
   tree.arrange();
   // console.log(JSON.stringify(tree.nodes, null, 2));
   console.log(tree.nodes.join('\r\n'))
+  process.send('hello world');
+}
+else {
+  process.on('message', function(msg){
+    var tree = new Tree(msg);
+    process.send(tree);
+  });
+  process.send({ status: 'ready'})
 }
