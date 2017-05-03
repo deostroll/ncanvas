@@ -1,0 +1,17 @@
+{
+  "name": "ulam",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "deostroll <deostroll@gmail.com> (http://twitter.com/deostroll)",
+  "license": "ISC",
+  "dependencies": {
+    "canvas": "^1.6.5",
+    "jsdom": "^10.1.0",
+    "konva": "^1.6.1"
+  }
+}
