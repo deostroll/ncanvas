@@ -142,7 +142,8 @@ if (require.main === module && !process.send) {
 else {
   process.on('message', function(msg){
     var tree = new Tree(msg);
-    process.send(tree);
+    tree.arrange();
+    process.send({status: 'ok', data: tree});
   });
   process.send({ status: 'ready'})
 }

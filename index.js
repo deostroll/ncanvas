@@ -1,14 +1,23 @@
 var cp = require('child_process');
 var fork = cp.fork;
+var fs = require('fs');
 
-p = fork('./generate.js');
+var generator = fork('./generate.js');
+var plotter = fork('./plot.js');
 
-p.on('message', function(d){
-  console.log(d);
+generator.on('message', function(d){
   if (d.status === 'ready') {
-    p.send(7)
+    generator.send(10)
   }
-  else if(d.status === 'ready') {
-    console.log(d.data);
+  else if(d.status === 'ok') {
+    // plotter.send(d.data);
+    fs.writeFile('input.json', JSON.stringify(d.data), {encoding: 'utf8'}, function(e){
+      if (e) {
+        console.error(e);
+      }
+      else {
+        process.exit(0);
+      }
+    })
   }
 })
