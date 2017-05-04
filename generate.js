@@ -66,7 +66,7 @@ function Tree(levels) {
       childNodes.push(newNode(n, n.value * 2,NodeType.EVEN));
 
       var value = (n.value - 1)/3;
-      if (!isFrac(value) && value > 0) {
+      if (!isFrac(value) && value > 0 && value % 2) {
         childNodes.push(newNode(n, value, NodeType.ODD));
       }
     }
