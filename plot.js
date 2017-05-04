@@ -8,6 +8,8 @@ function Graph(graph) {
   var self = this;
   this.vertexes = g.map(x => new Vertex(x));
   this.edges = [];
+  this.levels = graph.levels;
+
   var _findIndexByValue = function(value) {
     var vertexes = self.vertexes;
     for(var i = 0, j = vertexes.length; i < j; i++) {
@@ -43,7 +45,13 @@ Graph.prototype.render = function() {
   };
 
   var layer = new Konva.Layer();
+  var background = new Konva.Rect({
+    fill: 'white'
+  });
 
+  layer.add(background);
+
+  var points = [];
   vertexes.forEach( v => {
     var x = v.get('x');
     var y = v.get('y');
@@ -51,6 +59,7 @@ Graph.prototype.render = function() {
 
     var px = x * spacing.h + spacing.offset;
     var py = y * spacing.v + spacing.offset;
+    points.push({x: px, y: py });
     if (spacing.maxX < px) {
       spacing.maxX = px;
     }
@@ -58,19 +67,38 @@ Graph.prototype.render = function() {
     if (spacing.maxY < py) {
       spacing.maxY = py;
     }
+    var color = {};
+    var type = v.get('type');
+    // console.log(type, value);
+    if (type === 'root') {
+      color.fill = 'green';
+      color.text = 'white';
+    }
+    else if (type === 'even') {
+      color.fill = 'yellow';
+      color.text = 'black';
+    }
+    else if (type === 'odd') {
+      color.fill = 'lightgreen';
+      color.text = 'black';
+    }
+    else {
+      color.fill = 'lightpink';
+      color.text = 'black';
+    }
 
     var circle = new Konva.Circle({
       radius: 15,
       x: px,
       y: py,
-      fill: 'lightgreen'
+      fill: color.fill
     });
 
     var text = new Konva.Text({
       x: circle.x(),
       y: circle.y(),
       text: value.toString(),
-      fill: 'black'
+      fill: color.text
     });
 
     var bounds = text.getClientRect();
@@ -82,16 +110,52 @@ Graph.prototype.render = function() {
     layer.add(text);
   });
 
-  var stage = new Konva.Stage({
+  edges.forEach(e => {
+    var pointFrom = points[e.from], pointTo = points[e.to];
+    var theta = Math.atan2(pointTo.y - pointFrom.y, pointTo.x - pointFrom.x);
+    var r = 15;
+    var cos = r * Math.cos(theta), sin = r * Math.sin(theta);
+    var arrow = new Konva.Arrow({
+      x: pointFrom.x,
+      y: pointFrom.y,
+      points: [
+        pointTo.x - pointFrom.x - cos, pointTo.y - pointFrom.y - sin,
+        cos, sin,
+      ],
+      fill: 'black',
+      pointerWidth: 5,
+      pointerLength: 5,
+      stroke: 'black'
+    });
+    layer.add(arrow);
+  });
+
+  var label = new Konva.Text({
+    text: 'Iterations: ' + this.levels,
+    fontSize: 42,
+    fill: 'black'
+  });
+
+  background.height(spacing.maxY + spacing.offset*2);
+  background.width(spacing.maxX + spacing.offset*2);
+
+  layer.add(label);
+
+  var canvas = layer.toCanvas({
     height: spacing.maxY + spacing.offset*2,
     width: spacing.maxX + spacing.offset*2
   });
+  var pad = function(n, pad) {
+    pad = pad || 2;
+    var str = '';
+    for(var k = 0; k < pad; k++) str += '0';
+    str += n;
+    return str.substring(str.length - 1 - pad);
+  } ;
 
-  stage.add(layer);
-
-  // var contents = stage.toDataURL();
-  // fs.writeFileSync('out.txt', '<img src="' + contents + '" />', {encoding: 'utf8'});
-  console.log(layer.getCanvas());
+  var fname = 'output-' + pad(this.levels) + '.png';
+  var ws = fs.createWriteStream(fname);
+  return canvas.pngStream().pipe(ws);
 };
 
 function Vertex(x) {
@@ -113,8 +177,9 @@ function Vertex(x) {
 
 }
 
+module.exports = Graph;
 
-if (!process.send) {
+if (!process.send && require.main === module) {
   var args = process.argv.slice(2);
   var file = args[0];
   fs.readFile(file, {encoding: 'utf8'}, function(e, data){
@@ -127,4 +192,14 @@ if (!process.send) {
       graph.render();
     }
   });
+}
+else {
+  process.on('message', function(d) {
+    // console.log(d.nodes[2]);
+    var graph = new Graph(d);
+    graph.render().on('close', () => {
+      console.log('plotted...');
+      process.send({status: 'ok', levels: d.levels })
+    });
+  })
 }

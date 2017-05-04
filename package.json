@@ -12,6 +12,6 @@
   "dependencies": {
     "canvas": "^1.6.5",
     "jsdom": "^10.1.0",
-    "konva": "^1.6.1"
+    "konva": "git+https://github.com/deostroll/konva.git#node-canvas"
   }
 }

@@ -4,11 +4,19 @@ function ulam(iterations) {
   return tree;
 }
 
+const NodeType = {
+  ROOT : 'root',
+  EVEN : 'even',
+  ODD : 'odd'
+};
+
 function Node(parent, value) {
   this.parent = parent;
   this.value = value;
   this.y = parent ? parent.y + 1: 0;
   this.x = 0;
+  this.type = null;
+
   Object.defineProperty(this, 'childs', {
     enumerable: false,
     value: []
@@ -32,12 +40,14 @@ Node.prototype = {
 
 function Tree(levels) {
   var root = new Node(null, 1);
+  root.type = NodeType.ROOT;
   var nodes = [root];
 
   var isFrac = (x) => (x - Math.floor(x)) > 0;
   var children = nodes.slice();
-  var newNode = function(parent, value) {
+  var newNode = function(parent, value, type) {
     var n = new Node(parent, value);
+    n.type = type;
     parent.addChild(n);
     nodes.push(n);
     return n;
@@ -53,11 +63,11 @@ function Tree(levels) {
       else if(n.value === 1) {
         continue;
       }
-      childNodes.push(newNode(n, n.value * 2));
+      childNodes.push(newNode(n, n.value * 2,NodeType.EVEN));
 
       var value = (n.value - 1)/3;
       if (!isFrac(value) && value > 0) {
-        childNodes.push(newNode(n, value));
+        childNodes.push(newNode(n, value, NodeType.ODD));
       }
     }
     children = childNodes
@@ -131,6 +141,8 @@ Tree.prototype.arrange = function() {
   }
 }
 
+module.exports = ulam;
+
 if (require.main === module && !process.send) {
   var levels = 5;
   var tree = new Tree(levels);
@@ -140,10 +152,13 @@ if (require.main === module && !process.send) {
   process.send('hello world');
 }
 else {
-  process.on('message', function(msg){
-    var tree = new Tree(msg);
-    tree.arrange();
-    process.send({status: 'ok', data: tree});
-  });
-  process.send({ status: 'ready'})
+  if (require.main === module) {
+    process.on('message', function(msg){
+      var tree = new Tree(msg);
+      tree.arrange();
+      console.log('Generated...');
+      process.send({status: 'ok', data: tree});
+    });
+    process.send({ status: 'ready'})
+  }
 }
