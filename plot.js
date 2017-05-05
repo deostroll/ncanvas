@@ -1,4 +1,5 @@
-var Konva = require('konva');
+var Canvas = require('canvas');
+var util = require('util');
 var fs = require('fs');
 
 const PIx2 = Math.PI * 2;
@@ -36,126 +37,65 @@ function Graph(graph) {
 Graph.prototype.render = function() {
   var vertexes = this.vertexes;
   var edges = this.edges;
-  var spacing = {
-    h: 100,
-    v: 100,
-    offset: 15,
-    maxX: -1,
-    maxY: -1
+  var maxX = -1, maxY = -1;
+  var points = vertexes.map((v, i) => {
+    var x = 50 * (v.get('x') + 1), y = 50 * (v.get('y') + 1);
+    maxX = maxX < x ? x: maxX;
+    maxY = maxY < y ? y: maxY;
+    return { x: x, y: y, v: v.get('value'), type: v.get('type')};
+  });
+
+  var radius = 15;
+  var width = maxX + 50, height = maxY + 50;
+  console.log(util.format('%dx%d', maxX, maxY));
+  var canvas = new Canvas(width, height);
+  var ctx = canvas.getContext('2d');
+  var Pix2 = Math.PI * 2;
+  ctx.font = '10px Arial';
+  points.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Pix2, false);
+    ctx.closePath();
+    ctx.fillStyle = p.type === 'root' ? 'green' : (p.type === 'even' ? 'lightblue' : 'lightgreen');
+    ctx.fill();
+    var measure = ctx.measureText(p.v);
+    // console.log(measure);
+    ctx.fillStyle = 'black';
+    ctx.fillText(p.v, p.x - measure.width/2, p.y)
+  });
+
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 3;
+
+  edges.forEach( e => {
+    var p1 = points[e.from], p2 = points[e.to];
+    // console.log({
+    //   p1: p1, p2: p2
+    // });
+    var Dx = p2.x - p1.x, Dy = p2.y - p1.y;
+
+    var theta = Math.atan2(Dy, Dx);
+    var dx = radius * Math.cos(theta), dy = radius*Math.sin(theta);
+
+    ctx.beginPath();
+    ctx.moveTo(p1.x + dx, p1.y + dy);
+    ctx.lineTo(p2.x - dx, p2.y - dy);
+    // ctx.closePath();
+    ctx.stroke();
+  });
+
+  var pad = function(n, len) {
+    len = len || 2;
+    var str = '';
+    var j = 0;
+    while (j++ < len) str += '0';
+    str += n;
+    return str.substring(str.length - 1 - len);
   };
 
-  var layer = new Konva.Layer();
-  var background = new Konva.Rect({
-    fill: 'white'
-  });
+  var fname = util.format('output-%s.png', pad(this.levels));
 
-  layer.add(background);
-
-  var points = [];
-  vertexes.forEach( v => {
-    var x = v.get('x');
-    var y = v.get('y');
-    var value = v.get('value');
-
-    var px = x * spacing.h + spacing.offset;
-    var py = y * spacing.v + spacing.offset;
-    points.push({x: px, y: py });
-    if (spacing.maxX < px) {
-      spacing.maxX = px;
-    }
-
-    if (spacing.maxY < py) {
-      spacing.maxY = py;
-    }
-    var color = {};
-    var type = v.get('type');
-    // console.log(type, value);
-    if (type === 'root') {
-      color.fill = 'green';
-      color.text = 'white';
-    }
-    else if (type === 'even') {
-      color.fill = 'yellow';
-      color.text = 'black';
-    }
-    else if (type === 'odd') {
-      color.fill = 'lightgreen';
-      color.text = 'black';
-    }
-    else {
-      color.fill = 'lightpink';
-      color.text = 'black';
-    }
-
-    var circle = new Konva.Circle({
-      radius: 15,
-      x: px,
-      y: py,
-      fill: color.fill
-    });
-
-    var text = new Konva.Text({
-      x: circle.x(),
-      y: circle.y(),
-      text: value.toString(),
-      fill: color.text
-    });
-
-    var bounds = text.getClientRect();
-    text.offset({
-      x: bounds.width/2,
-      y: bounds.height/2
-    });
-    layer.add(circle);
-    layer.add(text);
-  });
-
-  edges.forEach(e => {
-    var pointFrom = points[e.from], pointTo = points[e.to];
-    var theta = Math.atan2(pointTo.y - pointFrom.y, pointTo.x - pointFrom.x);
-    var r = 15;
-    var cos = r * Math.cos(theta), sin = r * Math.sin(theta);
-    var arrow = new Konva.Arrow({
-      x: pointFrom.x,
-      y: pointFrom.y,
-      points: [
-        pointTo.x - pointFrom.x - cos, pointTo.y - pointFrom.y - sin,
-        cos, sin,
-      ],
-      fill: 'black',
-      pointerWidth: 5,
-      pointerLength: 5,
-      stroke: 'black'
-    });
-    layer.add(arrow);
-  });
-
-  var label = new Konva.Text({
-    text: 'Iterations: ' + this.levels,
-    fontSize: 42,
-    fill: 'black'
-  });
-
-  background.height(spacing.maxY + spacing.offset*2);
-  background.width(spacing.maxX + spacing.offset*2);
-
-  layer.add(label);
-
-  var canvas = layer.toCanvas({
-    height: spacing.maxY + spacing.offset*2,
-    width: spacing.maxX + spacing.offset*2
-  });
-  var pad = function(n, pad) {
-    pad = pad || 2;
-    var str = '';
-    for(var k = 0; k < pad; k++) str += '0';
-    str += n;
-    return str.substring(str.length - 1 - pad);
-  } ;
-
-  var fname = 'output-' + pad(this.levels) + '.png';
-  var ws = fs.createWriteStream(fname);
-  return canvas.pngStream().pipe(ws);
+  return canvas.pngStream().pipe(fs.createWriteStream(fname))
 };
 
 function Vertex(x) {
